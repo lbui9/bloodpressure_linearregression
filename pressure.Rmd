@@ -1,0 +1,188 @@
+---
+title: "Assignment 5: Under (blood) pressure"
+author: "Linh Bui"
+date: "`r Sys.Date()`"
+documentclass: article
+geometry: margin=1in
+fontsize: 11pt
+output:
+  pdf_document:
+    toc: false
+    df_print: kable
+    fig_caption: false
+    number_sections: false
+    dev: pdf
+    highlight: tango
+  html_document:
+    theme: default
+    self_contained: true
+    toc: false
+    df_print: kable
+    fig_caption: false
+    number_sections: false
+    smart: true
+    dev: svg
+---
+
+```{r setup, include = FALSE}
+# DO NOT ALTER THIS CHUNK
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE,
+  fig.width = 5,
+  fig.asp = 0.618,
+  out.width = "70%",
+  dpi = 120,
+  fig.align = "center",
+  cache = FALSE
+)
+# Load required packages
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(broom))
+suppressPackageStartupMessages(library(modelr))
+# Load dataset
+blood_pressure <- read_rds("blood_pressure.rds")
+```
+
+## Exercise 1
+
+i. 
+
+```{r, fig.asp = 1, fig.width = 8, out.width = "100%"}
+blood_pressure %>%
+  pivot_longer(cols = Age:Pulse, names_to = "measurement", values_to = "value") %>%
+  ggplot() +
+    geom_point(mapping = aes(x = value, y = Systol)) +
+    facet_wrap(~ measurement, scales = "free_x")
+```
+
+ii.
+
+```{r, fig.asp = 1, fig.width = 8, out.width = "100%"}
+blood_pressure %>%
+  pivot_longer(cols = Age:Pulse, names_to = "measurement", values_to = "value") %>%
+  ggplot() +
+    geom_point(mapping = aes(x = value, y = Systol)) +
+    facet_wrap(~ measurement, scales = "free_x") +
+    geom_smooth(mapping = aes(x = value, y = Systol), method = "lm")
+```
+
+
+## Exercise 2
+
+i. What type of correlation does the Years variable have with Systol: positive, negative, or no correlation?
+
+I would say there is a no correlation between these two variables since although the central line is weakly negative, the confidence interval is wide enough to include a positive correlation.  
+
+ii. Which variable shows a moderate to strong positive correlation with Systol? 
+
+The Weight and Forearm variables show a moderate to strong positive correlation with Systol.  
+ 
+## Exercise 3
+
+```{r}
+blood_pressure_updated <- blood_pressure %>%
+  mutate(urban_frac_life = Years / Age)
+```
+
+
+## Exercise 4
+
+```{r}
+systol_urban_frac_model <- lm(Systol ~ urban_frac_life, data = blood_pressure_updated)
+```
+
+
+## Exercise 5
+
+```{r}
+systol_urban_frac_model %>%
+  tidy()
+```
+
+```{r}
+systol_urban_frac_model %>%
+  glance() %>% 
+  select(r.squared:statistic)
+```
+
+
+## Exercise 6
+
+```{r}
+systol_urban_frac_df <- blood_pressure_updated %>%
+  add_predictions(systol_urban_frac_model) %>%
+  add_residuals(systol_urban_frac_model)
+```
+
+i. 'pred' is the name of the column that holds response (y) values predicted by the model.
+
+ii. 'resid' is the name of the column that holds the residuals for each observation.
+
+## Exercise 7
+
+```{r}
+ggplot(systol_urban_frac_df) +
+  geom_point(mapping = aes(x = urban_frac_life, y = Systol)) +
+  geom_abline(slope = systol_urban_frac_model$coefficients[2], intercept = systol_urban_frac_model$coefficients[1])
+```
+
+* The relationship between the explanatory variable (urban_frac_life) and the response variable (Systol) is linear, as there's no obvious curvature in the data.
+
+## Exercise 8
+
+It looks like the variability is not reasonably constant all the way along the line as there are a few outliers. This means that this model does not meet the 3rd condition of Constant Variability.
+
+## Exercise 9
+
+```{r}
+  qplot(x = resid, binwidth = 6, data = systol_urban_frac_df)
+```
+
+i. The distribution of the residuals is not symmetric and right-skewed with outliers. 
+
+ii. My model does not meet the second condition, nearly normal residuals because it doesn't have a bell curve shape. It has various modes and outliers. 
+
+## Exercise 10
+
+```{r}
+systol_weight_model <- lm(Systol ~ Weight, data = blood_pressure_updated)
+```
+
+```{r}
+systol_weight_model %>%
+  glance() %>% 
+  select(r.squared:statistic)
+```
+
+* Since the r.squared for the systol_weight_model = 0.2718207 is closer to 1 than the r.squared for the systol_urban_frac_model = 0.07625642, this new model seem to predict Systol better than urban_frac_life.
+
+## Exercise 11
+
+```{r}
+systol_weight_df <- blood_pressure %>%
+  add_predictions(systol_weight_model) %>%
+  add_residuals(systol_weight_model)
+```
+
+```{r}
+ggplot(systol_weight_df) +
+  geom_point(mapping = aes(x = Weight, y = Systol)) +
+  geom_abline(slope = systol_weight_model$coefficients[2], intercept = systol_weight_model$coefficients[1])
+```
+
+* It can be seen from this scatter graph that this new model meets Condition 1, Linearity, since there is no obvious curvature in the data. It looks like the variability is reasonably constant all the way along the line except for 2 outliers. This means that this model meets the 3rd condition of Constant Variability.
+
+```{r}
+  qplot(x = resid, binwidth = 5, data = systol_weight_df)
+```
+
+* The new model meets the second condition, nearly normal residuals because it does have a bell curve shape. The shape of the graph is symmetric with only 2 outliers.
+
+* According the reasonings that I have made for 3 least squares assumptions, we can conclude that this model is quite reliable. 
+
+## Exercise 12
+
+* This second model better explains the data compared with the first model between Systol and urban_frac_life. First, the two variables in the second model have stronger correlation because the r.squared for the systol_weight_model is closer to 1 and further to 0 than the r.squared for the systol_urban_frac_model. Also, the second model meets all 3 assumptions of the linear model while the first model seems to meet only 1/3 assumption.
+
+
